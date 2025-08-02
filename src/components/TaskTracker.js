@@ -1,263 +1,140 @@
-import React, { useState, useEffect } from "react";
-import { db, auth } from "../firebase";
+import React, { useState } from "react";
+import { doc, deleteDoc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "../firebase"; // assuming you use auth
 import {
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  updateDoc,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-  onSnapshot,
-} from "firebase/firestore";
+  Pencil,
+  Trash2,
+  CheckCircle,
+  RotateCcw,
+  Save,
+  PlusCircle,
+} from "lucide-react";
 
-// MUI
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import IconButton from "@mui/material/IconButton";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogActions from "@mui/material/DialogActions";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import UndoIcon from "@mui/icons-material/Undo";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-
-// Toasts
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
-function TaskTracker() {
-  const [tasks, setTasks] = useState([]);
-  const [taskInput, setTaskInput] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentTaskId, setCurrentTaskId] = useState(null);
-  const [viewingTask, setViewingTask] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // Real-time Firestore task sync
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        const q = query(
-          collection(db, "tasks"),
-          where("userId", "==", user.uid),
-          orderBy("createdAt", "desc")
-        );
-
-        const unsubscribeSnapshot = onSnapshot(
-          q,
-          (snapshot) => {
-            const liveTasks = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }));
-            setTasks(liveTasks);
-            setLoading(false);
-          },
-          (error) => {
-            console.error("Error listening to tasks:", error);
-            toast.error("Failed to sync tasks.");
-            setLoading(false);
-          }
-        );
-
-        return unsubscribeSnapshot;
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+const TaskTracker = ({ tasks, refreshTasks }) => {
+  const [editingId, setEditingId] = useState(null);
+  const [editedText, setEditedText] = useState("");
+  const [newTask, setNewTask] = useState("");
 
   const handleAddTask = async () => {
-    if (!taskInput.trim()) {
-      toast.warn("Please enter a task.");
-      return;
-    }
+    if (newTask.trim() === "") return;
 
-    if (!auth.currentUser) {
-      console.warn("No user is logged in");
-      return;
-    }
+    await addDoc(collection(db, "tasks"), {
+      text: newTask,
+      completed: false,
+      createdAt: serverTimestamp(),
+      userId: auth.currentUser?.uid || "anonymous", // Adjust based on your setup
+    });
 
-    try {
-      await addDoc(collection(db, "tasks"), {
-        text: taskInput.trim(),
-        completed: false,
-        userId: auth.currentUser.uid,
-        createdAt: Timestamp.now(),
-      });
-      setTaskInput("");
-      toast.success("Task added!");
-    } catch (error) {
-      console.error("Error adding task:", error);
-      toast.error("Failed to add task.");
-    }
+    setNewTask("");
+    refreshTasks();
   };
 
-  const handleDeleteTask = async (id) => {
-    try {
-      await deleteDoc(doc(db, "tasks", id));
-      toast.success("Task deleted.");
-    } catch (error) {
-      console.error("Error deleting task:", error);
-      toast.error("Failed to delete task.");
-    }
+  const handleDelete = async (id) => {
+    await deleteDoc(doc(db, "tasks", id));
+    refreshTasks();
   };
 
-  const handleEditTask = (id) => {
-    const taskToEdit = tasks.find((task) => task.id === id);
-    setTaskInput(taskToEdit.text);
-    setIsEditing(true);
-    setCurrentTaskId(id);
+  const handleEdit = (task) => {
+    setEditingId(task.id);
+    setEditedText(task.text);
   };
 
-  const handleUpdateTask = async () => {
-    if (!taskInput.trim()) {
-      toast.warn("Please enter a task.");
-      return;
-    }
-
-    try {
-      const taskRef = doc(db, "tasks", currentTaskId);
-      await updateDoc(taskRef, {
-        text: taskInput.trim(),
-      });
-      setTaskInput("");
-      setIsEditing(false);
-      setCurrentTaskId(null);
-      toast.success("Task updated!");
-    } catch (error) {
-      console.error("Error updating task:", error);
-      toast.error("Failed to update task.");
-    }
+  const handleUpdate = async (id) => {
+    await updateDoc(doc(db, "tasks", id), { text: editedText });
+    setEditingId(null);
+    setEditedText("");
+    refreshTasks();
   };
 
-  const handleToggleComplete = async (id) => {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-
-    try {
-      const taskRef = doc(db, "tasks", id);
-      await updateDoc(taskRef, {
-        completed: !task.completed,
-      });
-      toast.success(task.completed ? "Marked as incomplete." : "Task completed!");
-    } catch (error) {
-      console.error("Error toggling task completion:", error);
-      toast.error("Failed to update task status.");
-    }
-  };
-
-  const handleViewTask = (id) => {
-    const task = tasks.find((t) => t.id === id);
-    setViewingTask(task);
-  };
-
-  const closeView = () => {
-    setViewingTask(null);
+  const toggleComplete = async (id, currentStatus) => {
+    await updateDoc(doc(db, "tasks", id), { completed: !currentStatus });
+    refreshTasks();
   };
 
   return (
-    <div style={{ maxWidth: 600, margin: "auto", padding: 16 }}>
-      <h2>Task Tracker</h2>
+    <div>
+      <h3>Your Tasks</h3>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <TextField
-          label="Enter task"
-          variant="outlined"
-          value={taskInput}
-          onChange={(e) => setTaskInput(e.target.value)}
-          fullWidth
+      {/* Add Task Form */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        <input
+          type="text"
+          value={newTask}
+          onChange={(e) => setNewTask(e.target.value)}
+          placeholder="Enter new task"
+          style={{ flexGrow: 1, padding: "8px" }}
         />
-        {isEditing ? (
-          <Button variant="contained" color="secondary" onClick={handleUpdateTask}>
-            Update
-          </Button>
-        ) : (
-          <Button variant="contained" color="primary" onClick={handleAddTask}>
-            Add Task
-          </Button>
-        )}
+        <button onClick={handleAddTask} title="Add Task">
+          <PlusCircle size={24} color="#28a745" />
+        </button>
       </div>
 
-      {loading ? (
-        <p>Loading tasks...</p>
-      ) : tasks.length === 0 ? (
-        <p>No tasks yet.</p>
-      ) : (
-        <List>
+      {/* Task Table */}
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ background: "#f9f9f9" }}>
+            <th style={{ padding: "8px", border: "1px solid #ddd" }}>Task</th>
+            <th style={{ padding: "8px", border: "1px solid #ddd" }}>Status</th>
+            <th style={{ padding: "8px", border: "1px solid #ddd" }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
           {tasks.map((task) => (
-            <ListItem
-              key={task.id}
-              divider
-              secondaryAction={
-                <>
-                  <IconButton
-                    edge="end"
-                    aria-label="toggle complete"
-                    onClick={() => handleToggleComplete(task.id)}
-                    color={task.completed ? "success" : "default"}
-                  >
-                    {task.completed ? <UndoIcon /> : <CheckCircleIcon />}
-                  </IconButton>
-                  <IconButton edge="end" aria-label="view" onClick={() => handleViewTask(task.id)}>
-                    <VisibilityIcon />
-                  </IconButton>
-                  <IconButton edge="end" aria-label="edit" onClick={() => handleEditTask(task.id)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleDeleteTask(task.id)}
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </>
-              }
-            >
-              <ListItemText
-                primary={task.text}
+            <tr key={task.id} style={{ borderBottom: "1px solid #ccc" }}>
+              <td style={{ padding: "8px", border: "1px solid #ddd" }}>
+                {editingId === task.id ? (
+                  <input
+                    value={editedText}
+                    onChange={(e) => setEditedText(e.target.value)}
+                    style={{ width: "100%" }}
+                  />
+                ) : (
+                  task.text
+                )}
+              </td>
+              <td style={{ padding: "8px", border: "1px solid #ddd" }}>
+                {task.completed ? "✅ Completed" : "⏳ Pending"}
+              </td>
+              <td
                 style={{
-                  textDecoration: task.completed ? "line-through" : "none",
-                  color: task.completed ? "gray" : "inherit",
+                  padding: "8px",
+                  border: "1px solid #ddd",
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
                 }}
-              />
-            </ListItem>
+              >
+                {editingId === task.id ? (
+                  <button onClick={() => handleUpdate(task.id)} title="Save">
+                    <Save size={20} color="#007bff" />
+                  </button>
+                ) : (
+                  <>
+                    <button onClick={() => handleEdit(task)} title="Edit">
+                      <Pencil size={20} color="#ffc107" />
+                    </button>
+                    <button onClick={() => handleDelete(task.id)} title="Delete">
+                      <Trash2 size={20} color="#dc3545" />
+                    </button>
+                    <button
+                      onClick={() => toggleComplete(task.id, task.completed)}
+                      title={task.completed ? "Undo Complete" : "Mark Complete"}
+                    >
+                      {task.completed ? (
+                        <RotateCcw size={20} color="#17a2b8" />
+                      ) : (
+                        <CheckCircle size={20} color="#28a745" />
+                      )}
+                    </button>
+                  </>
+                )}
+              </td>
+            </tr>
           ))}
-        </List>
-      )}
-
-      <Dialog open={!!viewingTask} onClose={closeView}>
-        <DialogTitle>Task Details</DialogTitle>
-        <DialogContent dividers>
-          <DialogContentText>
-            <strong>Task:</strong> {viewingTask?.text}
-          </DialogContentText>
-          <DialogContentText>
-            <strong>Status:</strong> {viewingTask?.completed ? "✅ Completed" : "❌ Not Completed"}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeView} color="primary">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <ToastContainer position="top-right" autoClose={3000} />
+        </tbody>
+      </table>
     </div>
   );
-}
+};
 
 export default TaskTracker;

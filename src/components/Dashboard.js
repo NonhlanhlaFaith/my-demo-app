@@ -1,97 +1,140 @@
 import React, { useEffect, useState } from "react";
+import { signOut } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../firebase"; // adjust path if needed
-import TaskTracker from "./TaskTracker";
+import { auth, db } from "../firebase";
+import { useNavigate } from "react-router-dom";
+import TaskTracker from "./TaskTracker";  // Your CRUD task list component
+import CalendarView from "./CalendarView";
+import GanttChart from "./GanttChart";
+import Settings from "./Settings";
 import "./Dashboard.css";
 
-const Dashboard = ({ user, onLogout }) => {
+const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
-  const [showPopups, setShowPopups] = useState(false);
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState("table");
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user?.uid) return;
-
-    const fetchTasks = async () => {
-      try {
-        const tasksRef = collection(db, "tasks");
-        const q = query(tasksRef, where("userId", "==", user.uid));
-        const querySnapshot = await getDocs(q);
-        const taskList = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setTasks(taskList);
-      } catch (error) {
-        console.error("Error fetching tasks:", error);
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        navigate("/login");
+      } else {
+        setUser(user);
+        fetchTasks(user.uid);
       }
-    };
+    });
+    return () => unsubscribe();
+  }, [navigate]);
 
-    fetchTasks();
-  }, [user]);
+  const fetchTasks = async (uid) => {
+    try {
+      const tasksRef = collection(db, "tasks"); // root tasks collection
+      const q = query(tasksRef, where("userId", "==", uid));
+      const tasksSnapshot = await getDocs(q);
+      const fetchedTasks = tasksSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setTasks(fetchedTasks);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
+  };
 
-  useEffect(() => {
-    const timer = setTimeout(() => setShowPopups(true), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const logout = async () => {
+    await signOut(auth);
+    navigate("/login");
+  };
 
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((task) => task.completed).length;
-  const remainingTasks = totalTasks - completedTasks;
-  const productivity = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  const completedTasks = tasks.filter((t) => t.completed).length;
+  const pendingTasks = tasks.length - completedTasks;
+  const progress = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
+
+  // Render your views: calendar, gantt, or the TaskTracker CRUD list
+  const renderView = () => {
+    switch (view) {
+      case "calendar":
+        return <CalendarView tasks={tasks} />;
+      case "gantt":
+        return <GanttChart tasks={tasks} />;
+      case "table":
+      default:
+        // Pass tasks AND fetchTasks so TaskTracker can update the list after CRUD ops
+        return <TaskTracker tasks={tasks} refreshTasks={() => fetchTasks(user.uid)} />;
+    }
+  };
 
   return (
     <div className="dashboard-container">
-      <header className="dashboard-header">
-        <div className="user-info">
-          <div className="avatar">{user?.email?.[0]?.toUpperCase()}</div>
-          <h2>Welcome, {user?.email}</h2>
-        </div>
-        <button className="logout-btn" onClick={onLogout}>
-          Logout
-        </button>
-      </header>
-
-      <div className="dashboard-stats">
-        <div className="stat-card">
-          <h4>Total Tasks</h4>
-          <p>{totalTasks}</p>
-        </div>
-        <div className="stat-card">
-          <h4>Completed</h4>
-          <p>{completedTasks}</p>
-        </div>
-        <div className="stat-card">
-          <h4>Productivity</h4>
-          <p>{Math.round(productivity)}%</p>
-        </div>
+      <div className="sidebar">
+        <h2>📌 MyTaskTracker</h2>
+        <ul>
+          <li onClick={() => setView("table")}>🏠 Home</li>
+          <li onClick={() => setView("calendar")}>📆 Calendar</li>
+          <li onClick={() => setView("gantt")}>📊 Gantt</li>
+          <li onClick={() => setView("settings")}>⚙️ Settings</li>
+          <li onClick={logout}>🚪 Logout</li>
+        </ul>
       </div>
 
-      <div className="progress-section">
-        <h4>Progress</h4>
-        <progress value={productivity} max="100" />
-      </div>
+      <div className="dashboard-main">
+        <div className="dashboard-header">
+          <h2>Welcome Back 👋</h2>
+          {user && (
+            <div className="user-info">
+              <div className="avatar">{user.email?.charAt(0).toUpperCase()}</div>
+              <span>{user.email}</span>
+            </div>
+          )}
+        </div>
 
-      {/* Delayed Motivational Popups */}
-      {showPopups && (
+        <div className="dashboard-stats">
+          <div className="stat-card">
+            <h3>📋 Total Tasks</h3>
+            <p>{tasks.length}</p>
+          </div>
+          <div className="stat-card">
+            <h3>✅ Completed</h3>
+            <p>{completedTasks}</p>
+          </div>
+          <div className="stat-card">
+            <h3>⏳ Pending</h3>
+            <p>{pendingTasks}</p>
+          </div>
+        </div>
+
+        <div className="progress-section">
+          <h4>Progress</h4>
+          <div
+            className="progress-bar"
+            style={{ background: "#eee", height: "20px", borderRadius: "10px" }}
+          >
+            <div
+              style={{
+                width: `${progress}%`,
+                height: "100%",
+                background: "#4caf50",
+                borderRadius: "10px",
+              }}
+            />
+          </div>
+          <p>{Math.round(progress)}%</p>
+        </div>
+
+        {renderView()}
+
         <div className="dashboard-popups">
           <div className="popup-card">
-            <h4>🔔 Reminder</h4>
-            <p>You have {remainingTasks} tasks remaining.</p>
-          </div>
-          <div className="popup-card">
             <h4>💡 Tip</h4>
-            <p>Start your day by finishing a small task to build momentum.</p>
+            <p>You can switch views from the left sidebar menu!</p>
           </div>
           <div className="popup-card">
-            <h4>🎯 Goal</h4>
-            <p>Try to finish 1 more task today!</p>
+            <h4>📈 Boost Productivity</h4>
+            <p>Use the Gantt view to plan your timelines.</p>
           </div>
         </div>
-      )}
-
-      <section className="task-section">
-        <TaskTracker />
-      </section>
+      </div>
     </div>
   );
 };

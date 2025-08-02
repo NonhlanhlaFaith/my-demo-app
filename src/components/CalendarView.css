@@ -1,0 +1,12 @@
+.calendar-view {
+  padding: 1rem;
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.has-task {
+  background: #4caf50 !important;
+  color: white !important;
+  border-radius: 50%;
+}

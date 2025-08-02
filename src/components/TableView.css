@@ -1,0 +1,30 @@
+.table-view {
+  padding: 1rem;
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.task-table th,
+.task-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.status.completed {
+  color: green;
+  font-weight: bold;
+}
+
+.status.pending {
+  color: orange;
+  font-weight: bold;
+}
