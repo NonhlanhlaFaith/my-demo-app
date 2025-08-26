@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react"; 
 import { signOut } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -13,14 +13,13 @@ const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
   const [user, setUser] = useState(null);
   const [view, setView] = useState("table");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true); // sidebar toggle
   const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (!user) {
-        navigate("/login");
-      } else {
+      if (!user) navigate("/login");
+      else {
         setUser(user);
         fetchTasks(user.uid);
       }
@@ -54,12 +53,9 @@ const Dashboard = () => {
 
   const renderView = () => {
     switch (view) {
-      case "calendar":
-        return <CalendarView tasks={tasks} />;
-      case "gantt":
-        return <GanttChart tasks={tasks} />;
-      case "settings":
-        return <Settings user={user} />;
+      case "calendar": return <CalendarView tasks={tasks} />;
+      case "gantt": return <GanttChart tasks={tasks} />;
+      case "settings": return <Settings user={user} />;
       case "table":
       default:
         return <TaskTracker tasks={tasks} refreshTasks={() => fetchTasks(user.uid)} />;
@@ -68,24 +64,22 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-container">
-      {/* Hamburger button for mobile */}
+      {/* Hamburger for mobile */}
       <button className="hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
         ☰
       </button>
 
       {/* Sidebar */}
-      {sidebarOpen && (
-        <div className="sidebar">
-          <h2>📌 MyTaskTracker</h2>
-          <ul>
-            <li onClick={() => setView("table")}>🏠 Home</li>
-            <li onClick={() => setView("calendar")}>📆 Calendar</li>
-            <li onClick={() => setView("gantt")}>📊 Gantt</li>
-            <li onClick={() => setView("settings")}>⚙️ Settings</li>
-            <li onClick={logout}>🚪 Logout</li>
-          </ul>
-        </div>
-      )}
+      <div className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        <h2>📌 MyTaskTracker</h2>
+        <ul>
+          <li onClick={() => setView("table")}>🏠 Home</li>
+          <li onClick={() => setView("calendar")}>📆 Calendar</li>
+          <li onClick={() => setView("gantt")}>📊 Gantt</li>
+          <li onClick={() => setView("settings")}>⚙️ Settings</li>
+          <li onClick={logout}>🚪 Logout</li>
+        </ul>
+      </div>
 
       {/* Main content */}
       <div className="dashboard-main">
