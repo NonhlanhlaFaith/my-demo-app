@@ -1,9 +1,12 @@
+/* General dashboard */
 .dashboard-container {
   display: flex;
   height: 100vh;
   background-color: #f5f6fa;
+  overflow: hidden;
 }
 
+/* Sidebar */
 .sidebar {
   width: 220px;
   background-color: #2f3542;
@@ -14,7 +17,7 @@
   border-right: 2px solid #dcdde1;
 }
 
-.sidebar h3 {
+.sidebar h2 {
   margin-bottom: 1rem;
 }
 
@@ -35,16 +38,32 @@
   background-color: #57606f;
 }
 
+/* Hamburger button */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #2f3542;
+  margin: 1rem;
+  position: fixed;
+  z-index: 1000;
+}
+
+/* Main content */
 .dashboard-main {
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
 }
 
+/* Header */
 .dashboard-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 2rem;
 }
 
@@ -66,37 +85,105 @@
   justify-content: center;
 }
 
+/* Stats */
 .dashboard-stats {
   display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
 }
 
 .stat-card {
   background: white;
   padding: 1rem;
-  flex: 1;
+  flex: 1 1 150px;
   border-radius: 10px;
   text-align: center;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
+/* Progress */
 .progress-section {
   margin-bottom: 2rem;
 }
 
+.progress-bar {
+  background: #eee;
+  height: 20px;
+  border-radius: 10px;
+  width: 100%;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4caf50;
+  border-radius: 10px;
+}
+
+/* Popups */
 .dashboard-popups {
   display: flex;
   gap: 1rem;
   margin-top: 2rem;
+  flex-wrap: wrap;
 }
 
 .popup-card {
   background-color: #fff;
   padding: 1rem;
   border-radius: 10px;
-  flex: 1;
+  flex: 1 1 200px;
   box-shadow: 0 1px 5px rgba(0,0,0,0.1);
 }
 
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .dashboard-container {
+    flex-direction: column;
+    height: auto;
+  }
 
+  .hamburger {
+    display: block;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 2px solid #dcdde1;
+    padding: 0.5rem;
+  }
+
+  .sidebar ul {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0;
+  }
+
+  .sidebar li {
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .dashboard-main {
+    padding: 1rem;
+  }
+
+  .dashboard-stats {
+    flex-direction: column;
+  }
+
+  .dashboard-popups {
+    flex-direction: column;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
